@@ -13,5 +13,8 @@
     "chai"
   ],
   "author": "Mohammed Lakhrawala",
-  "license": "ISC"
+  "license": "ISC",
+  "devDependencies": {
+    "prettier": "^3.5.3"
+  }
 }
