@@ -49,7 +49,7 @@ const userSchema = new mongoose.Schema({
 //encryption vgera sb complex operations hai toh inko kaam krne me time lgta hai is liye y async funtion hai aur arrow function is callback me use nahi kr skte kyuki arrow function k pass this ka reference nahi hota but apn ko kis data pr kaam krna hai voh pta hona chahiye jesiki user ki koi field ko manipulate krna ho is liye normal function use kiya hai
 userSchema.pre("save", async function(next){
     if(!this.isModified("password")){ return next(); } //if password is not modified, skip hashing
-    this.password = bcrypt.hash(this.password, 10);
+    this.password = await bcrypt.hash(this.password, 10);
     next(); 
 })
 

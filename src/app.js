@@ -17,4 +17,12 @@ app.use(express.static("public"))       //jb kuch files data kkuch bhi aata hai 
 app.use(cookieParser())
 
 
+//routes:-
+import userRouter from "./routes/user.routes.js";
+
+//routes declaration
+//app.get likhte hai jb routes aur sb controllers app me hi hote the but ab middleware use krke vhn hai routes ko lana pdega
+app.use("/api/v1/users", userRouter);
+
+
 export {app}
