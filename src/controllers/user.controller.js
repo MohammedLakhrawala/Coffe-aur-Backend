@@ -4,6 +4,7 @@ import { User } from "../models/user.model.js";
 import { uploadOnCloudinary } from "../models/cloudinary.js";
 import {ApiResponse} from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
 
 const generateAccessAndRefreshToken = async (userId) => {
     try {
@@ -344,6 +345,142 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
     )
 })
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+    // get userId from req.params
+    // find user by id
+    // return user details
+
+    const {username} = req.params;
+
+    if(!username?.trim()){
+        throw new ApiError(400, "Username is missing")
+    }
+
+
+    //database s user pura loge fir aggregation pipeline lagaenge uski id k babses itni zarurat hai nhi
+    //User.find({username})
+    //direct hi aggregation pipeline lga skta hai apn
+
+    const channel = await User.aggregate([
+        {
+            $match:{
+                username: username?.toLowerCase()
+            }
+        },
+        {
+            $lookup:{
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup:{
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber ",
+                as: "subscribedTo"
+            }
+        },
+        {
+            $addFields:{
+                subscribersCount: {$size: "$subscribers"},
+                subscribedToCount: {$size: "$subscribedTo"},
+                isSubscribed:{
+                    $cond: {
+                        if: {$in: [req.user?._id, "$subscribers.subscriber"]},
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project:{
+                fullname: 1,
+                username: 1,
+                avatar: 1,
+                coverImage: 1,
+                subscribersCount: 1,
+                subscribedToCount: 1,
+                isSubscribed: 1
+            }
+        }
+    ])
+
+    console.log(channel);
+    
+    if(!channel?.length){
+        throw new ApiError(404, "Channel not found")
+    }
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, channel[0], "User channel profile fetched successfully")
+    )
+})
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+    // get user id from req.user
+    // find user by id
+    // populate watchHistory with video details
+    // return response
+
+    const user = await User.aggregate([
+        {
+            $match: {
+                //direct id is liye nhi li kyuki aggregate k under sidha pura code jata hai mongoose kaam nhi krta is liye apn isi use krenge
+                _id: new mongoose.Types.ObjectId(req.user._id)
+            }
+        },
+        {
+            $lookup:
+            {
+                from: "videos", // collection name
+                localField: "watchHistory", // field in user collection
+                foreignField: "_id", // field in video collection
+                as: "watchHistory", // output field
+                pipeline:[
+                    {
+                        $lookup:{
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            //owner me sb kuch nhi chahiye user ka is liye iske andr hi
+                            pipeline:[
+                                {
+                                    $project: {
+                                        fullname: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields:{
+                            owner:{
+                                //$arrayElemAt: ["$owner", 0] // owner is an array, so we need to get the first element
+                                $first: "$owner" // owner is an array, so we need to get the first element
+                            }
+                        }
+                    }
+                ]
+            }
+        }
+    ])
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, user[0]?.watchHistory || [], "User watch history fetched successfully")
+    )
+})
+
 export { 
     registerUser,
     loginUser, 
@@ -353,5 +490,7 @@ export {
     getCurrentUser, 
     updateAccountDetails,
     updateUserAvatar,
-    updateUserCoverImage 
+    updateUserCoverImage,
+    getUserChannelProfile,
+    getWatchHistory
 };
